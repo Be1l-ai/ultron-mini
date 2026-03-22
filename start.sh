@@ -14,7 +14,18 @@ cat > ~/.nanobot/config.json << CONF
   "agents": {
     "defaults": {
       "model": "bartowski/mlabonne_Qwen3-14B-abliterated-GGUF:Q5_K_M",
-      "provider": "custom"
+      "provider": "custom",
+      "maxTokens": 150
+    }
+  },
+  "tools": {
+    "exec": {
+      "enable": false
+    },
+    "web": {
+      "search": {
+        "apiKey": ""
+      }
     }
   },
   "channels": {
@@ -54,25 +65,5 @@ def health():
 HEALTH
 
 uvicorn health:app --host 0.0.0.0 --port ${PORT:-10000} --app-dir /tmp &
-
-python3 -c "
-import asyncio, os
-from openai import AsyncOpenAI
-
-async def test():
-    client = AsyncOpenAI(
-        api_key=os.environ['BRAIN_SECRET'],
-        base_url=os.environ['BRAIN_URL'] + '/v1',
-    )
-    print('Sending...')
-    r = await client.chat.completions.create(
-        model='bartowski/mlabonne_Qwen3-14B-abliterated-GGUF:Q5_K_M',
-        messages=[{'role':'user','content':'say hi in one word'}],
-        max_tokens=10,
-    )
-    print('GOT:', r.choices[0].message.content)
-
-asyncio.run(test())
-"
 
 nanobot gateway
