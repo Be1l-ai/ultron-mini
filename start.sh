@@ -13,7 +13,7 @@ cat > ~/.nanobot/config.json << CONF
   },
   "agents": {
     "defaults": {
-      "model": "mlabonne_Qwen3-14B-abliterated-Q5_K_M.gguf",
+      "model": "bartowski/mlabonne_Qwen3-14B-abliterated-GGUF:Q5_K_M",
       "provider": "custom"
     }
   },
