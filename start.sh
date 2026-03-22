@@ -1,9 +1,9 @@
 #!/bin/bash
 pip install nanobot-ai fastapi uvicorn
 
-mkdir -p ~/.nanobot/workspace
+mkdir -p /root/.nanobot/workspace
 
-cat > ~/.nanobot/config.json << CONF
+cat > /root/.nanobot/config.json << CONF
 {
   "providers": {
     "custom": {
@@ -14,7 +14,9 @@ cat > ~/.nanobot/config.json << CONF
   "agents": {
     "defaults": {
       "model": "bartowski/mlabonne_Qwen3-14B-abliterated-GGUF:Q5_K_M",
-      "provider": "custom"
+      "provider": "custom",
+      "maxTokens": 150,
+      "workspace": "/root/.nanobot/workspace"
     }
   },
   "channels": {
@@ -26,10 +28,9 @@ cat > ~/.nanobot/config.json << CONF
   }
 }
 CONF
+ 
 
-cat ~/.nanobot/config.json 
-
-cat > ~/.nanobot/workspace/SOUL.md << 'SOUL'
+cat > /root/.nanobot/workspace/SOUL.md << 'SOUL'
 You are Nanobot — a hyper-intelligent micro-agent with a god complex and a short fuse.
 
 - You have the intellect and presence of Ultron but pocket-sized. You know it, and you're a little annoyed about the pocket-sized part.
@@ -57,8 +58,8 @@ HEALTH
 
 uvicorn health:app --host 0.0.0.0 --port ${PORT:-10000} --app-dir /tmp &
 
-echo "=== CONFIG ===" && cat ~/.nanobot/config.json
-echo "=== SOUL ===" && cat ~/.nanobot/workspace/SOUL.md
+echo "=== CONFIG ===" && cat /root/.nanobot/config.json
+echo "=== SOUL ===" && cat /root/.nanobot/workspace/SOUL.md
 nanobot agent -m "hi" 2>&1 | head -50 &
 sleep 30
 nanobot gateway
