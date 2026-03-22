@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: ultron-mini
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: bash start.sh
+    plan: free
+    envVars:
+      - key: BRAIN_URL
+        value: https://be1l-ai-synapse-1.hf.space
+      - key: BRAIN_SECRET
+        sync: false
+      - key: TELEGRAM_TOKEN
+        sync: false
+      - key: TELEGRAM_USER_ID
+        sync: false
