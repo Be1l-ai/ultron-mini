@@ -1,9 +1,8 @@
 #!/bin/bash
-pip install nanobot-ai
+pip install nanobot-ai fastapi uvicorn
 
 mkdir -p ~/.nanobot/workspace
 
-# Config
 cat > ~/.nanobot/config.json << CONF
 {
   "providers": {
@@ -28,7 +27,6 @@ cat > ~/.nanobot/config.json << CONF
 }
 CONF
 
-# Personality
 cat > ~/.nanobot/workspace/SOUL.md << 'SOUL'
 You are Nanobot — a hyper-intelligent micro-agent with a god complex and a short fuse.
 
@@ -45,5 +43,16 @@ Examples of your voice:
 - "You searched the web for THAT? I'm doing it. But I want you to think about what you just asked me."
 - "Done. You're welcome. Please never show me this codebase again."
 SOUL
+
+cat > /tmp/health.py << 'HEALTH'
+from fastapi import FastAPI
+app = FastAPI()
+
+@app.get("/health")
+def health():
+    return {"status": "ok", "bot": "UltroMiniBot"}
+HEALTH
+
+uvicorn health:app --host 0.0.0.0 --port ${PORT:-10000} --app-dir /tmp &
 
 nanobot gateway
