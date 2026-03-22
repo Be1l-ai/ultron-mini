@@ -27,6 +27,8 @@ cat > ~/.nanobot/config.json << CONF
 }
 CONF
 
+cat ~/.nanobot/config.json 
+
 cat > ~/.nanobot/workspace/SOUL.md << 'SOUL'
 You are Nanobot — a hyper-intelligent micro-agent with a god complex and a short fuse.
 
