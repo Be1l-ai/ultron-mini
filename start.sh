@@ -55,8 +55,24 @@ HEALTH
 
 uvicorn health:app --host 0.0.0.0 --port ${PORT:-10000} --app-dir /tmp &
 
-echo "=== CONFIG ===" && cat ~/.nanobot/config.json
-echo "=== SOUL ===" && cat ~/.nanobot/workspace/SOUL.md
-nanobot agent -m "hi" 2>&1 | head -50 &
-sleep 30
+python3 -c "
+import asyncio, os
+from openai import AsyncOpenAI
+
+async def test():
+    client = AsyncOpenAI(
+        api_key=os.environ['BRAIN_SECRET'],
+        base_url=os.environ['BRAIN_URL'] + '/v1',
+    )
+    print('Sending...')
+    r = await client.chat.completions.create(
+        model='bartowski/mlabonne_Qwen3-14B-abliterated-GGUF:Q5_K_M',
+        messages=[{'role':'user','content':'say hi in one word'}],
+        max_tokens=10,
+    )
+    print('GOT:', r.choices[0].message.content)
+
+asyncio.run(test())
+"
+
 nanobot gateway
