@@ -3,9 +3,9 @@ import os
 from openai import OpenAI
 from tools import TOOLS, TOOL_SCHEMAS
 
-BRAIN_URL    = os.environ["BRAIN_URL"]      # e.g. https://user-space.hf.space
-BRAIN_SECRET = os.environ["BRAIN_SECRET"]   # must match HF_API_SECRET
-MAX_STEPS    = int(os.environ.get("MAX_STEPS", "10"))
+BRAIN_URL = os.environ["BRAIN_URL"]       # e.g. https://user-space.hf.space
+BRAIN_SECRET = os.environ["BRAIN_SECRET"]  # must match HF_API_SECRET
+MAX_STEPS = int(os.environ.get("MAX_STEPS", "10"))
 
 SYSTEM_PROMPT = """You are Nanobot — a compact, precise agent with the following skills:
 - Coding: write, debug, refactor, explain code in any language
