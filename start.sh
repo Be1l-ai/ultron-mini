@@ -57,4 +57,8 @@ HEALTH
 
 uvicorn health:app --host 0.0.0.0 --port ${PORT:-10000} --app-dir /tmp &
 
+echo "=== CONFIG ===" && cat ~/.nanobot/config.json
+echo "=== SOUL ===" && cat ~/.nanobot/workspace/SOUL.md
+nanobot agent -m "hi" 2>&1 | head -50 &
+sleep 30
 nanobot gateway
