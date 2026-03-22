@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+openai
+duckduckgo-search
+requests
+pydantic
