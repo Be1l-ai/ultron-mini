@@ -15,7 +15,7 @@ cat > ~/.nanobot/config.json << CONF
     "defaults": {
       "model": "bartowski/mlabonne_Qwen3-14B-abliterated-GGUF:Q5_K_M",
       "provider": "custom",
-      "maxTokens": 512
+      "maxTokens": 2048
     }
   },
   "channels": {
