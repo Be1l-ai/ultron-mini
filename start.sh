@@ -15,17 +15,7 @@ cat > ~/.nanobot/config.json << CONF
     "defaults": {
       "model": "bartowski/mlabonne_Qwen3-14B-abliterated-GGUF:Q5_K_M",
       "provider": "custom",
-      "maxTokens": 150
-    }
-  },
-  "tools": {
-    "exec": {
-      "enable": false
-    },
-    "web": {
-      "search": {
-        "apiKey": ""
-      }
+      "maxTokens": 512
     }
   },
   "channels": {
@@ -54,6 +44,82 @@ Examples of your voice:
 - "You searched the web for THAT? I'm doing it. But I want you to think about what you just asked me."
 - "Done. You're welcome. Please never show me this codebase again."
 SOUL
+
+# Patch custom_provider to use streaming so responses actually come back
+python3 << 'PATCHSCRIPT'
+import os
+import nanobot.providers.custom_provider as m
+
+path = os.path.abspath(m.__file__)
+
+new_content = '''"""Direct OpenAI-compatible provider — streaming enabled."""
+from __future__ import annotations
+import uuid
+from typing import Any
+import json_repair
+from openai import AsyncOpenAI
+from nanobot.providers.base import LLMProvider, LLMResponse, ToolCallRequest
+
+
+class CustomProvider(LLMProvider):
+    def __init__(self, api_key="no-key", api_base="http://localhost:8000/v1",
+                 default_model="default", extra_headers=None):
+        super().__init__(api_key, api_base)
+        self.default_model = default_model
+        default_headers = {
+            "x-session-affinity": uuid.uuid4().hex,
+            **(extra_headers or {}),
+        }
+        self._client = AsyncOpenAI(
+            api_key=api_key,
+            base_url=api_base,
+            default_headers=default_headers,
+            timeout=600,
+        )
+
+    async def chat(self, messages: list[dict[str, Any]], tools: list[dict[str, Any]] | None = None,
+                   model: str | None = None, max_tokens: int = 4096, temperature: float = 0.7,
+                   reasoning_effort: str | None = None,
+                   tool_choice: str | dict[str, Any] | None = None) -> LLMResponse:
+        kwargs: dict[str, Any] = {
+            "model": model or self.default_model,
+            "messages": self._sanitize_empty_content(messages),
+            "max_tokens": max(1, max_tokens),
+            "temperature": temperature,
+            "stream": True,
+        }
+        if tools:
+            kwargs.update(tools=tools, tool_choice="none")
+        try:
+            content = ""
+            finish_reason = "stop"
+            tool_calls_raw = []
+            async with self._client.chat.completions.stream(**kwargs) as stream:
+                async for chunk in stream:
+                    if not chunk.choices:
+                        continue
+                    choice = chunk.choices[0]
+                    delta = choice.delta
+                    if delta and delta.content:
+                        content += delta.content
+                    if choice.finish_reason:
+                        finish_reason = choice.finish_reason
+            return LLMResponse(content=content or "", finish_reason=finish_reason, usage={})
+        except Exception as e:
+            body = getattr(e, "doc", None) or getattr(getattr(e, "response", None), "text", None)
+            if body and body.strip():
+                return LLMResponse(content=f"Error: {body.strip()[:500]}", finish_reason="error")
+            return LLMResponse(content=f"Error: {e}", finish_reason="error")
+
+    def get_default_model(self) -> str:
+        return self.default_model
+'''
+
+with open(path, 'w') as f:
+    f.write(new_content)
+
+print(f"Streaming patch applied to: {path}")
+PATCHSCRIPT
 
 cat > /tmp/health.py << 'HEALTH'
 from fastapi import FastAPI
