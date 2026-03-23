@@ -93,14 +93,18 @@ class CustomProvider(LLMProvider):
             tool_calls_raw = []
             async with self._client.chat.completions.stream(**kwargs) as stream:
                 async for chunk in stream:
-                    if not chunk.choices:
-                        continue
+                  try:
+                    if not hasattr(chunk, 'choices') or not chunk.choices:
+                      continue
                     choice = chunk.choices[0]
-                    delta = choice.delta
-                    if delta and delta.content:
-                        content += delta.content
+                    if not hasattr(choice, 'delta') or not choice.delta:
+                      continue
+                    if choice.delta.content:
+                      content += choice.delta.content
                     if choice.finish_reason:
-                        finish_reason = choice.finish_reason
+                      finish_reason = choice.finish_reason
+                  except Exception:
+                    continue
             return LLMResponse(content=content or "", finish_reason=finish_reason, usage={})
         except Exception as e:
             body = getattr(e, "doc", None) or getattr(getattr(e, "response", None), "text", None)
