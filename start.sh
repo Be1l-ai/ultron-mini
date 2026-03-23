@@ -87,8 +87,6 @@ class CustomProvider(LLMProvider):
             "max_tokens": max(1, max_tokens),
             "temperature": temperature,
         }
-        if tools:
-            kwargs.update(tools=tools, tool_choice="none")
         try:
             content = ""
             finish_reason = "stop"
