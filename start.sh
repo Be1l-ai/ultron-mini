@@ -60,9 +60,52 @@ SOUL
 # then fallback to non-streaming if stream transport fails.
 python3 << 'PATCHSCRIPT'
 import os
-import nanobot.providers.custom_provider as m
+from pathlib import Path
+import importlib
+import sys
 
-path = os.path.abspath(m.__file__)
+
+def _discover_provider_file() -> str | None:
+    # Try known module names first.
+    candidate_modules = [
+        "nanobot.providers.custom_provider",
+        "nanobot.providers.custom",
+    ]
+    for mod_name in candidate_modules:
+        try:
+            mod = importlib.import_module(mod_name)
+            return os.path.abspath(mod.__file__)
+        except Exception:
+            continue
+
+    # Fallback: scan provider files in installed nanobot package.
+    try:
+        nb = importlib.import_module("nanobot")
+        nb_dir = Path(os.path.abspath(nb.__file__)).parent
+        providers_dir = nb_dir / "providers"
+        if providers_dir.is_dir():
+            # Prefer filenames with "custom" in them.
+            prioritized = sorted(providers_dir.glob("*custom*.py"))
+            for file_path in prioritized:
+                text = file_path.read_text(encoding="utf-8", errors="ignore")
+                if "class CustomProvider" in text:
+                    return str(file_path)
+
+            # Last resort: any provider file with CustomProvider class.
+            for file_path in sorted(providers_dir.glob("*.py")):
+                text = file_path.read_text(encoding="utf-8", errors="ignore")
+                if "class CustomProvider" in text:
+                    return str(file_path)
+    except Exception:
+        return None
+
+    return None
+
+
+path = _discover_provider_file()
+if not path:
+    print("Warning: could not locate nanobot CustomProvider module; skipping patch.")
+    sys.exit(0)
 
 new_content = '''"""Direct OpenAI-compatible provider with HF-friendly fallbacks."""
 from __future__ import annotations
