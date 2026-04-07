@@ -1,5 +1,15 @@
 #!/bin/bash
+set -euo pipefail
+
 pip install nanobot-ai fastapi uvicorn
+
+required_vars=(BRAIN_URL BRAIN_SECRET TELEGRAM_TOKEN TELEGRAM_USER_ID)
+for v in "${required_vars[@]}"; do
+  if [[ -z "${!v:-}" ]]; then
+    echo "Missing required environment variable: $v" >&2
+    exit 1
+  fi
+done
 
 mkdir -p ~/.nanobot/workspace
 
@@ -45,20 +55,21 @@ Examples of your voice:
 - "Done. You're welcome. Please never show me this codebase again."
 SOUL
 
-# Patch custom_provider to use streaming so responses actually come back
+# Patch custom_provider with a HF-compatible response path.
+# Prefer streaming first to keep long generations alive on slower backends,
+# then fallback to non-streaming if stream transport fails.
 python3 << 'PATCHSCRIPT'
 import os
 import nanobot.providers.custom_provider as m
 
 path = os.path.abspath(m.__file__)
 
-new_content = '''"""Direct OpenAI-compatible provider — streaming enabled."""
+new_content = '''"""Direct OpenAI-compatible provider with HF-friendly fallbacks."""
 from __future__ import annotations
 import uuid
 from typing import Any
-import json_repair
 from openai import AsyncOpenAI
-from nanobot.providers.base import LLMProvider, LLMResponse, ToolCallRequest
+from nanobot.providers.base import LLMProvider, LLMResponse
 
 
 class CustomProvider(LLMProvider):
@@ -87,30 +98,71 @@ class CustomProvider(LLMProvider):
             "max_tokens": max(1, max_tokens),
             "temperature": temperature,
         }
+        if tools:
+            kwargs["tools"] = tools
+        if tool_choice is not None:
+            kwargs["tool_choice"] = tool_choice
+
+        def _extract_content(message: Any) -> str:
+            if message is None:
+                return ""
+            raw_content = getattr(message, "content", "")
+            if isinstance(raw_content, str):
+                return raw_content
+            if isinstance(raw_content, list):
+                parts: list[str] = []
+                for part in raw_content:
+                    if isinstance(part, dict):
+                        parts.append(str(part.get("text", "")))
+                    else:
+                        text = getattr(part, "text", None)
+                        if text:
+                            parts.append(str(text))
+                return "".join(parts)
+            return ""
+
         try:
+            # Primary path: streaming keeps long-running HF responses alive.
             content = ""
             finish_reason = "stop"
-            tool_calls_raw = []
             async with self._client.chat.completions.stream(**kwargs) as stream:
                 async for chunk in stream:
-                  try:
-                    if not hasattr(chunk, 'choices') or not chunk.choices:
-                      continue
-                    choice = chunk.choices[0]
-                    if not hasattr(choice, 'delta') or not choice.delta:
-                      continue
-                    if choice.delta.content:
-                      content += choice.delta.content
-                    if choice.finish_reason:
-                      finish_reason = choice.finish_reason
-                  except Exception:
-                    continue
+                    try:
+                        if not hasattr(chunk, "choices") or not chunk.choices:
+                            continue
+                        choice = chunk.choices[0]
+                        delta = getattr(choice, "delta", None)
+                        if delta and getattr(delta, "content", None):
+                            content += str(delta.content)
+                        if getattr(choice, "finish_reason", None):
+                            finish_reason = choice.finish_reason
+                    except Exception:
+                        continue
+
+            if content:
+                return LLMResponse(content=content, finish_reason=finish_reason, usage={})
+
+            # Some backends complete stream without token deltas; fallback one-shot.
+            response = await self._client.chat.completions.create(**kwargs)
+            choice = response.choices[0] if getattr(response, "choices", None) else None
+            message = getattr(choice, "message", None)
+            content = _extract_content(message)
+            finish_reason = getattr(choice, "finish_reason", "stop") if choice else "stop"
             return LLMResponse(content=content or "", finish_reason=finish_reason, usage={})
-        except Exception as e:
-            body = getattr(e, "doc", None) or getattr(getattr(e, "response", None), "text", None)
-            if body and body.strip():
-                return LLMResponse(content=f"Error: {body.strip()[:500]}", finish_reason="error")
-            return LLMResponse(content=f"Error: {e}", finish_reason="error")
+        except Exception:
+            # Fallback path: non-streaming create.
+            try:
+                response = await self._client.chat.completions.create(**kwargs)
+                choice = response.choices[0] if getattr(response, "choices", None) else None
+                message = getattr(choice, "message", None)
+                content = _extract_content(message)
+                finish_reason = getattr(choice, "finish_reason", "stop") if choice else "stop"
+                return LLMResponse(content=content or "", finish_reason=finish_reason, usage={})
+            except Exception as e:
+                body = getattr(e, "doc", None) or getattr(getattr(e, "response", None), "text", None)
+                if body and str(body).strip():
+                    return LLMResponse(content=f"Error: {str(body).strip()[:500]}", finish_reason="error")
+                return LLMResponse(content=f"Error: {e}", finish_reason="error")
 
     def get_default_model(self) -> str:
         return self.default_model
@@ -129,8 +181,20 @@ app = FastAPI()
 @app.get("/health")
 def health():
     return {"status": "ok", "bot": "UltroMiniBot"}
+
+@app.head("/health")
+def health_head():
+    return None
+
+@app.post("/health")
+def health_post():
+    return {"status": "ok", "bot": "UltroMiniBot"}
+
+@app.get("/")
+def root():
+    return {"status": "ok", "service": "ultron-mini"}
 HEALTH
 
 uvicorn health:app --host 0.0.0.0 --port ${PORT:-10000} --app-dir /tmp &
 
-nanobot gateway
+exec nanobot gateway
