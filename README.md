@@ -6,10 +6,10 @@ A self-hosted AI agent with a god complex and a short fuse. Powered by [nanobot-
 
 ## Features
 
-- **nanobot-ai** — uses the `nanobot-ai` package for the agent runtime and gateway
+- **nanobot-ai** — agent runtime and Telegram gateway
+- **Local OpenAI proxy** — dynamic token sizing and timeout handling live in-repo
 - **Telegram channel** — interact with your agent directly from Telegram
-- **Custom LLM backend** — points at any OpenAI-compatible API (e.g. a Hugging Face Space)
-- **Custom personality** — ships with a snarky `SOUL.md` persona (Ultron, pocket-sized, perpetually annoyed)
+- **CPU-friendly defaults** — tuned for small local boxes and slower Hugging Face backends
 - **Ready for Render** — includes a `render.yaml` for one-click deployment
 
 ---
@@ -59,7 +59,7 @@ export TELEGRAM_USER_ID="your-telegram-user-id"
 bash start.sh
 ```
 
-This will install `nanobot-ai`, write the config and personality files, and start the Telegram gateway.
+This writes a compact runtime config, starts the local OpenAI-compatible proxy, and launches the Telegram gateway.
 
 ---
 
@@ -79,9 +79,13 @@ The repository includes a `render.yaml` for zero-config deployment:
 
 ```
 ultron-mini/
-├── start.sh         # Installs nanobot-ai, writes config + SOUL.md, starts the gateway
-├── requirements.txt # Python dependencies (nanobot-ai)
-└── render.yaml      # Render deployment config
+├── start.sh               # Thin entrypoint to the launcher
+├── ultron_mini/launcher.py # Local proxy, config writer, and process supervisor
+├── tests/                  # Small regression tests for token policy and persona size
+├── requirements.txt        # Pinned Python dependencies
+└── render.yaml             # Render deployment config
+
+The launcher writes only a tiny `AGENTS.md` persona file at runtime and keeps the Hugging Face backend behind a local OpenAI-compatible proxy, so nanobot never has to be patched in place.
 ```
 
 ---

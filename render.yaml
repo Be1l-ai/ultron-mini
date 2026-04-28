@@ -4,6 +4,7 @@ services:
     runtime: python
     buildCommand: pip install -r requirements.txt
     startCommand: bash start.sh
+    healthCheckPath: /health
     plan: free
     envVars:
       - key: BRAIN_URL
