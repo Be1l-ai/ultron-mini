@@ -42,5 +42,5 @@
 - **Verify the backend first**: `GET {BRAIN_URL}/v1/models` should return the model list.
 - **Use `/pingbrain`** in Telegram to check upstream connectivity.
 - **Enable debug logs**: `BRAIN_PIPELINE_DEBUG=1` to see pipeline timing.
-- **Container environments**: if you deploy on Render/HF, mount the GGUF path or use HF repo-based loading (see the README in the `huggingface` folder).
+- **Container environments**: if you deploy on Render/HF, mount the GGUF path or use the included Hugging Face Space configuration for repo-based loading.
 - **Keep `BRAIN_URL` clean**: the code appends `/v1`, so don’t include it yourself.
